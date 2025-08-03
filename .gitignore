@@ -1,0 +1,22 @@
+# IDE directories and files
+.idea/
+.vscode/
+
+# Python virtual environment
+venv/
+
+# Python compiled files
+__pycache__/
+*.pyc
+
+# Local Django files
+db.sqlite3
+media/
+.env
+
+# Files from macOS
+.DS_Store
+
+# Files from testing
+.pytest_cache/
+
