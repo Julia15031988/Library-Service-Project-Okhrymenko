@@ -14,6 +14,8 @@ from datetime import timedelta
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from celery.schedules import crontab
+
 
 load_dotenv()
 
@@ -50,6 +52,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "django_filters",
+    "django_celery_beat",
     "library",
     "user",
     "borrowings",
@@ -184,3 +187,10 @@ CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
 CELERY_TASK_SERIALIZER = "json"
+
+CELERY_BEAT_SCHEDULE = {
+    'check-overdue-borrowings-daily': {
+        'task': 'borrowings.tasks.check_overdue_borrowings',
+        'schedule': crontab(hour=9, minute=0),
+    },
+}
