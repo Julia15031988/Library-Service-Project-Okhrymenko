@@ -1,8 +1,11 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from django_filters.rest_framework import FilterSet, filters, DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
 from .models import Borrowing
 from .serializers import BorrowingSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils.timezone import now
 
 
 class BorrowingFilter(FilterSet):
@@ -36,3 +39,24 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(user__id=user_id)
 
         return queryset
+
+    @action(detail=True, methods=["post"])
+    def return_book(self, request, pk=None):
+        borrowing = self.get_object()
+
+        if borrowing.actual_return_date is not None:
+            return Response(
+                {"error": "This borrowing has already been returned."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        borrowing.actual_return_date = now()
+        borrowing.save()
+
+        borrowing.book.inventory += 1
+        borrowing.book.save()
+
+        return Response(
+            {"message": "Book successfully returned."},
+            status=status.HTTP_200_OK
+        )
