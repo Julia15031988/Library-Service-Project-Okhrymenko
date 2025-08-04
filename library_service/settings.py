@@ -9,6 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+
 from datetime import timedelta
 import os
 from pathlib import Path
@@ -25,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ("django-insecure-a+)obuw+(52gwu&dye=14btiza=y&t%st#$3n(3+m!_7v*&y17")
+SECRET_KEY = "django-insecure-a+)obuw+(52gwu&dye=14btiza=y&t%st#$3n(3+m!_7v*&y17"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -52,7 +53,6 @@ INSTALLED_APPS = [
     "library",
     "user",
     "borrowings",
-
 ]
 
 MIDDLEWARE = [
@@ -142,7 +142,6 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
 
 
 REST_FRAMEWORK = {

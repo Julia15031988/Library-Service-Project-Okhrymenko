@@ -1,5 +1,5 @@
 services:
-  theatre:
+  library:
     build:
       context: .
     env_file:

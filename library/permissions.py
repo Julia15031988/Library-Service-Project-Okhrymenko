@@ -1,5 +1,6 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
+
 class IsAdminOrReadOnly(BasePermission):
     def has_permission(self, request, view):
         # Дозволити усім (включно з анонімами) безпечні методи (GET, HEAD, OPTIONS)

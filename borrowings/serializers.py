@@ -6,7 +6,13 @@ from .models import Borrowing
 class BorrowingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Borrowing
-        fields = ("id", "borrow_date", "expected_return_date", "actual_return_date", "book")
+        fields = (
+            "id",
+            "borrow_date",
+            "expected_return_date",
+            "actual_return_date",
+            "book",
+        )
 
     def validate(self, attrs):
         book = attrs.get("book")
@@ -20,7 +26,6 @@ class BorrowingSerializer(serializers.ModelSerializer):
         book.save()
 
         borrowing = Borrowing.objects.create(
-            **validated_data,
-            user=self.context["request"].user
+            **validated_data, user=self.context["request"].user
         )
         return borrowing

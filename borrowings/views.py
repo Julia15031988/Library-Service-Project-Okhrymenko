@@ -6,6 +6,7 @@ from .serializers import BorrowingSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils.timezone import now
+from notifications.telegram import send_telegram_notification
 
 
 class BorrowingFilter(FilterSet):
@@ -20,6 +21,7 @@ class BorrowingFilter(FilterSet):
         if value:
             return queryset.filter(actual_return_date__isnull=True)
         return queryset.filter(actual_return_date__isnull=False)
+
 
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.all()
@@ -47,7 +49,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         if borrowing.actual_return_date is not None:
             return Response(
                 {"error": "This borrowing has already been returned."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         borrowing.actual_return_date = now()
@@ -57,6 +59,16 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         borrowing.book.save()
 
         return Response(
-            {"message": "Book successfully returned."},
-            status=status.HTTP_200_OK
+            {"message": "Book successfully returned."}, status=status.HTTP_200_OK
         )
+
+    def perform_create(self, serializer):
+        borrowing = serializer.save(user=self.request.user)
+        message = (
+            f"📚 New Borrowing Created\n\n"
+            f"User: {borrowing.user.email}\n"
+            f"Book: {borrowing.book.title}\n"
+            f"Borrow date: {borrowing.borrow_date}\n"
+            f"Expected return: {borrowing.expected_return_date}"
+        )
+        send_telegram_notification(message)
