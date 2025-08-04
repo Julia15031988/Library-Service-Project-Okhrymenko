@@ -57,6 +57,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -177,3 +178,9 @@ SIMPLE_JWT = {
 
 
 AUTH_USER_MODEL = "user.User"
+
+
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_TASK_SERIALIZER = "json"
