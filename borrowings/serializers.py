@@ -4,6 +4,8 @@ from .models import Borrowing, Payment
 
 
 class BorrowingSerializer(serializers.ModelSerializer):
+    payments = PaymentSerializer(many=True, read_only=True)
+
     class Meta:
         model = Borrowing
         fields = (
@@ -12,6 +14,7 @@ class BorrowingSerializer(serializers.ModelSerializer):
             "expected_return_date",
             "actual_return_date",
             "book",
+            "payments"
         )
 
     def validate(self, attrs):

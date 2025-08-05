@@ -19,15 +19,15 @@ class Borrowing(models.Model):
 
 
 class Payment(models.Model):
-    class CoverChoices(models.TextChoices):
-        PENDING = "Penning"
+    class PaymentStatus(models.TextChoices):
+        PENDING = "Pending"
         PAID = "Paid"
         FAILED = "Failed"
 
     borrowing = models.ForeignKey(
         "Borrowing", on_delete=models.CASCADE, related_name="payments"
     )
-    payment_status = models.CharField(max_length=10, choices=CoverChoices.choices)
+    payment_status = models.CharField(max_length=10, choices=PaymentStatus.choices)
     user_amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_date = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments")
@@ -36,4 +36,4 @@ class Payment(models.Model):
     session_id = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
-        return f"{self.user.email} - {self.status} - {self.amount}"
+        return f"{self.user.email} - {self.payment_status} - {self.user_amount}"
