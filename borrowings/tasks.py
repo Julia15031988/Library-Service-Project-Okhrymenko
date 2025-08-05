@@ -3,6 +3,7 @@ from django.utils.timezone import now
 from borrowings.models import Borrowing
 import requests
 
+
 @shared_task
 def send_telegram_message(token: str, chat_id: str, text: str):
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -14,6 +15,7 @@ def send_telegram_message(token: str, chat_id: str, text: str):
     response = requests.post(url, data=data)
     return response.ok
 
+
 @shared_task
 def check_overdue_borrowings():
     today = now().date()
@@ -21,8 +23,7 @@ def check_overdue_borrowings():
     chat_id = "YOUR_TELEGRAM_CHAT_ID"
 
     overdue_borrowings = Borrowing.objects.filter(
-        expected_return_date__lte=today,
-        returned=False
+        expected_return_date__lte=today, returned=False
     )
 
     if not overdue_borrowings.exists():

@@ -1,8 +1,8 @@
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, permissions
 from django_filters.rest_framework import FilterSet, filters, DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated
-from .models import Borrowing
-from .serializers import BorrowingSerializer
+from .models import Borrowing, Payment
+from .serializers import BorrowingSerializer, PaymentSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.utils.timezone import now
@@ -72,3 +72,22 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             f"Expected return: {borrowing.expected_return_date}"
         )
         send_telegram_notification(message)
+
+
+class IsAdminOrOwner(permissions.BasePermission):
+    def has_permission(self, request, view):
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        return request.user.is_staff or obj.user == request.user
+
+
+class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAdminOrOwner]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff:
+            return Payment.objects.all()
+        return Payment.objects.filter(user=user)

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from library.models import Book
-from .models import Borrowing
+from .models import Borrowing, Payment
 
 
 class BorrowingSerializer(serializers.ModelSerializer):
@@ -29,3 +29,17 @@ class BorrowingSerializer(serializers.ModelSerializer):
             **validated_data, user=self.context["request"].user
         )
         return borrowing
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "borrowing",
+            "payment_status",
+            "user_amount",
+            "payment_date",
+            "user",
+        )
+        read_only_fields = ["user", "payment_date"]

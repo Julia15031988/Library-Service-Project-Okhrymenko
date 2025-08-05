@@ -1,6 +1,10 @@
 from django.db import models
 from django.conf import settings
 from library.models import Book
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
 
 
 class Borrowing(models.Model):
@@ -12,3 +16,24 @@ class Borrowing(models.Model):
 
     def __str__(self):
         return f"{self.user.email} borrowed {self.book.title}"
+
+
+class Payment(models.Model):
+    class CoverChoices(models.TextChoices):
+        PENDING = "Penning"
+        PAID = "Paid"
+        FAILED = "Failed"
+
+    borrowing = models.ForeignKey(
+        "Borrowing", on_delete=models.CASCADE, related_name="payments"
+    )
+    payment_status = models.CharField(max_length=10, choices=CoverChoices.choices)
+    user_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_date = models.DateTimeField(auto_now_add=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="payments")
+
+    session_url = models.URLField(blank=True, null=True)
+    session_id = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.status} - {self.amount}"
