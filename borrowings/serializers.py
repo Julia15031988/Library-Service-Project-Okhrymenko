@@ -3,6 +3,21 @@ from library.models import Book
 from .models import Borrowing, Payment
 
 
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "borrowing",
+            "payment_status",
+            "user_amount",
+            "payment_date",
+            "user",
+            "payment_type",
+        )
+        read_only_fields = ["user", "payment_date"]
+
+
 class BorrowingSerializer(serializers.ModelSerializer):
     payments = PaymentSerializer(many=True, read_only=True)
 
@@ -14,7 +29,7 @@ class BorrowingSerializer(serializers.ModelSerializer):
             "expected_return_date",
             "actual_return_date",
             "book",
-            "payments"
+            "payments",
         )
 
     def validate(self, attrs):
@@ -32,17 +47,3 @@ class BorrowingSerializer(serializers.ModelSerializer):
             **validated_data, user=self.context["request"].user
         )
         return borrowing
-
-
-class PaymentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Payment
-        fields = (
-            "id",
-            "borrowing",
-            "payment_status",
-            "user_amount",
-            "payment_date",
-            "user",
-        )
-        read_only_fields = ["user", "payment_date"]

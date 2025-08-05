@@ -29,6 +29,50 @@ class BorrowingFilter(FilterSet):
         return queryset.filter(actual_return_date__isnull=False)
 
 
+def _create_stripe_session(request, borrowing, amount, payment_type):
+    """
+    Helper function to create a Stripe checkout session and a Payment object.
+    """
+    # Перевірка на вже існуючий платіж у стані PENDING
+    if Payment.objects.filter(borrowing=borrowing, payment_status=Payment.PaymentStatus.PENDING).exists():
+        return None, Response({"detail": "Pending payment already exists for this borrowing."},
+                              status=status.HTTP_400_BAD_REQUEST)
+
+    domain = request.build_absolute_uri("/")[:-1]
+    success_url = domain + reverse("borrowing:payment-success") + "?session_id={CHECKOUT_SESSION_ID}"
+    cancel_url = domain + reverse("borrowing:payment-cancel")
+
+    try:
+        session = stripe.checkout.Session.create(
+            line_items=[{
+                "price_data": {
+                    "currency": "usd",
+                    "product_data": {
+                        "name": f"{payment_type.capitalize()} for {borrowing.book.title}",
+                    },
+                    "unit_amount": int(amount * 100),
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=success_url,
+            cancel_url=cancel_url,
+        )
+    except stripe.error.StripeError as e:
+        return None, Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    payment = Payment.objects.create(
+        borrowing=borrowing,
+        user=borrowing.user,
+        user_amount=amount,
+        payment_status=Payment.PaymentStatus.PENDING,
+        payment_type=payment_type,
+        session_url=session.url,
+        session_id=session.id
+    )
+    return payment, None
+
+
 class BorrowingViewSet(viewsets.ModelViewSet):
     queryset = Borrowing.objects.all()
     serializer_class = BorrowingSerializer
@@ -64,6 +108,26 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         borrowing.book.inventory += 1
         borrowing.book.save()
 
+        if borrowing.actual_return_date > borrowing.expected_return_date:
+            overdue_days = (
+                    borrowing.actual_return_date - borrowing.expected_return_date
+            ).days
+            fine_amount = overdue_days * borrowing.book.daily_fee * settings.FINE_MULTIPLIER
+
+            payment, error_response = _create_stripe_session(
+                request, borrowing, fine_amount, Payment.PaymentType.FINE
+            )
+            if error_response:
+                return error_response
+
+            return Response(
+                {
+                    "message": f"Book returned with delay. Fine payment of {fine_amount} USD has been created.",
+                    "checkout_url": payment.session_url
+                },
+                status=status.HTTP_200_OK,
+            )
+
         return Response(
             {"message": "Book successfully returned."}, status=status.HTTP_200_OK
         )
@@ -78,8 +142,12 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             f"Expected return: {borrowing.expected_return_date}"
         )
         send_telegram_notification(message)
-        # Якщо хочеш - можна створити stripe session одразу
-        # create_stripe_session_for_borrowing(borrowing)
+        # Створення Stripe сесії одразу після створення позики.
+        days = (borrowing.expected_return_date - borrowing.borrow_date).days
+        amount = float(days * borrowing.book.daily_fee)
+        _create_stripe_session(
+            self.request, borrowing, amount, Payment.PaymentType.PAYMENT
+        )
 
 
 class IsAdminOrOwner(permissions.BasePermission):
@@ -87,88 +155,51 @@ class IsAdminOrOwner(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
-        return request.user.is_staff or obj.user == request.user
+        # Виправлено: тепер перевіряємо через об'єкт borrowing
+        return request.user.is_staff or obj.borrowing.user == request.user
 
 
-class PaymentViewSet(viewsets.ModelViewSet):
+class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrOwner]
 
     def get_queryset(self):
         user = self.request.user
         if user.is_staff:
             return Payment.objects.all()
-        return Payment.objects.filter(user=user)
-
-    @action(detail=True, methods=["post"], url_path="create-stripe-session")
-    def create_stripe_session(self, request, pk=None):
-        borrowing = get_object_or_404(Borrowing, pk=pk)
-
-        # Перевірка прав доступу
-        if borrowing.user != request.user and not request.user.is_staff:
-            return Response({"detail": "Not allowed."}, status=status.HTTP_403_FORBIDDEN)
-
-        # Розрахунок суми
-        days = (borrowing.expected_return_date - borrowing.borrow_date).days
-        amount = float(days * borrowing.book.daily_fee)
-
-        # Створення об'єкта Payment
-        payment = Payment.objects.create(
-            borrowing=borrowing,
-            user=request.user,
-            user_amount=amount,
-            payment_status=Payment.PaymentStatus.PENDING,
-        )
-
-        # Побудова success і cancel URL
-        domain = request.build_absolute_uri("/")[:-1]  # без `/` в кінці
-        success_url = domain + reverse("payments:payment-success") + "?session_id={CHECKOUT_SESSION_ID}"
-        cancel_url = domain + reverse("payments:payment-cancel")
-
-        # Створення сесії Stripe
-        session = stripe.checkout.Session.create(
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": f"{borrowing.book.title} borrowing",
-                    },
-                    "unit_amount": int(amount * 100),  # у центах
-                },
-                "quantity": 1,
-            }],
-            mode="payment",
-            success_url=success_url,
-            cancel_url=cancel_url,
-        )
-
-        # Зберігання URL сесії
-        payment.session_url = session.url
-        payment.session_id = session.id
-        payment.save()
-
-        return Response({"checkout_url": session.url}, status=status.HTTP_201_CREATED)
+        return Payment.objects.filter(borrowing__user=user)
 
     @action(detail=False, methods=["get"], url_path="success", name="payment-success")
     def payment_success(self, request):
         session_id = request.query_params.get("session_id")
-
         if not session_id:
-            return Response({"detail": "No session_id provided."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "No session_id provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             payment = Payment.objects.get(session_id=session_id)
         except Payment.DoesNotExist:
-            return Response({"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
-        if payment.payment_status != Payment.PaymentStatus.PAID:
-            payment.payment_status = Payment.PaymentStatus.PAID
-            payment.save()
-
-        return Response({"detail": "Payment was successful!"})
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            if session.payment_status == "paid":
+                payment.payment_status = Payment.PaymentStatus.PAID
+                payment.save()
+                return Response({"detail": "Payment was successful!"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"detail": "Payment was not successful."}, status=status.HTTP_400_BAD_REQUEST)
+        except stripe.error.StripeError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["get"], url_path="cancel", name="payment-cancel")
     def payment_cancel(self, request):
-        return Response({
-            "detail": "Payment was cancelled. You can try again within 24 hours."
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Payment was cancelled. You can try again within 24 hours."},
+            status=status.HTTP_200_OK,
+        )
