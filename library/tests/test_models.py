@@ -10,7 +10,7 @@ class BookModelTest(TestCase):
             author="F. Scott Fitzgerald",
             cover=Book.CoverChoices.HARD,
             inventory=5,
-            daily_fee=2.50
+            daily_fee=2.50,
         )
 
     def test_book_str_method(self):

@@ -36,26 +36,36 @@ def _create_stripe_session(request, borrowing, amount, payment_type):
     Helper function to create a Stripe checkout session and a Payment object.
     """
     # Перевірка на вже існуючий платіж у стані PENDING
-    if Payment.objects.filter(borrowing=borrowing, payment_status=Payment.PaymentStatus.PENDING).exists():
-        return None, Response({"detail": "Pending payment already exists for this borrowing."},
-                              status=status.HTTP_400_BAD_REQUEST)
+    if Payment.objects.filter(
+        borrowing=borrowing, payment_status=Payment.PaymentStatus.PENDING
+    ).exists():
+        return None, Response(
+            {"detail": "Pending payment already exists for this borrowing."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     domain = request.build_absolute_uri("/")[:-1]
-    success_url = domain + reverse("borrowing:payment-success") + "?session_id={CHECKOUT_SESSION_ID}"
+    success_url = (
+        domain
+        + reverse("borrowing:payment-success")
+        + "?session_id={CHECKOUT_SESSION_ID}"
+    )
     cancel_url = domain + reverse("borrowing:payment-cancel")
 
     try:
         session = stripe.checkout.Session.create(
-            line_items=[{
-                "price_data": {
-                    "currency": "usd",
-                    "product_data": {
-                        "name": f"{payment_type.capitalize()} for {borrowing.book.title}",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": "usd",
+                        "product_data": {
+                            "name": f"{payment_type.capitalize()} for {borrowing.book.title}",
+                        },
+                        "unit_amount": int(amount * 100),
                     },
-                    "unit_amount": int(amount * 100),
-                },
-                "quantity": 1,
-            }],
+                    "quantity": 1,
+                }
+            ],
             mode="payment",
             success_url=success_url,
             cancel_url=cancel_url,
@@ -70,7 +80,7 @@ def _create_stripe_session(request, borrowing, amount, payment_type):
         payment_status=Payment.PaymentStatus.PENDING,
         payment_type=payment_type,
         session_url=session.url,
-        session_id=session.id
+        session_id=session.id,
     )
     return payment, None
 
@@ -112,9 +122,11 @@ class BorrowingViewSet(viewsets.ModelViewSet):
 
         if borrowing.actual_return_date > borrowing.expected_return_date:
             overdue_days = (
-                    borrowing.actual_return_date - borrowing.expected_return_date
+                borrowing.actual_return_date - borrowing.expected_return_date
             ).days
-            fine_amount = overdue_days * borrowing.book.daily_fee * settings.FINE_MULTIPLIER
+            fine_amount = (
+                overdue_days * borrowing.book.daily_fee * settings.FINE_MULTIPLIER
+            )
 
             payment, error_response = _create_stripe_session(
                 request, borrowing, fine_amount, Payment.PaymentType.FINE
@@ -125,7 +137,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             return Response(
                 {
                     "message": f"Book returned with delay. Fine payment of {fine_amount} USD has been created.",
-                    "checkout_url": payment.session_url
+                    "checkout_url": payment.session_url,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -193,9 +205,14 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
             if session.payment_status == "paid":
                 payment.payment_status = Payment.PaymentStatus.PAID
                 payment.save()
-                return Response({"detail": "Payment was successful!"}, status=status.HTTP_200_OK)
+                return Response(
+                    {"detail": "Payment was successful!"}, status=status.HTTP_200_OK
+                )
             else:
-                return Response({"detail": "Payment was not successful."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Payment was not successful."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         except stripe.error.StripeError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

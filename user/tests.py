@@ -35,4 +35,6 @@ class UserModelTests(TestCase):
     def test_create_superuser_with_wrong_is_staff_flag_raises(self):
         """Спроба створити суперкористувача з is_staff=False має викликати помилку"""
         with self.assertRaises(ValueError):
-            User.objects.create_superuser(email="admin2@example.com", password="adminpass", is_staff=False)
+            User.objects.create_superuser(
+                email="admin2@example.com", password="adminpass", is_staff=False
+            )

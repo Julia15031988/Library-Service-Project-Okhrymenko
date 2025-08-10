@@ -7,14 +7,25 @@ from borrowings.models import Borrowing, Payment
 
 User = get_user_model()
 
+
 class BorrowingModelTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(email="user@example.com", password="pass123")
-        self.book = Book.objects.create(title="Test Book", author="Author", cover="HARD", inventory=5, daily_fee=1.50)
+        self.user = User.objects.create_user(
+            email="user@example.com", password="pass123"
+        )
+        self.book = Book.objects.create(
+            title="Test Book",
+            author="Author",
+            cover="HARD",
+            inventory=5,
+            daily_fee=1.50,
+        )
 
     def test_create_borrowing(self):
         expected_return = date.today() + timedelta(days=7)
-        borrowing = Borrowing.objects.create(user=self.user, book=self.book, expected_return_date=expected_return)
+        borrowing = Borrowing.objects.create(
+            user=self.user, book=self.book, expected_return_date=expected_return
+        )
 
         self.assertEqual(borrowing.user, self.user)
         self.assertEqual(borrowing.book, self.book)
@@ -27,12 +38,20 @@ class BorrowingModelTests(TestCase):
 
 class PaymentModelTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(email="payer@example.com", password="pass123")
-        self.book = Book.objects.create(title="Payment Book", author="Author", cover="SOFT", inventory=2, daily_fee=2.00)
+        self.user = User.objects.create_user(
+            email="payer@example.com", password="pass123"
+        )
+        self.book = Book.objects.create(
+            title="Payment Book",
+            author="Author",
+            cover="SOFT",
+            inventory=2,
+            daily_fee=2.00,
+        )
         self.borrowing = Borrowing.objects.create(
             user=self.user,
             book=self.book,
-            expected_return_date=date.today() + timedelta(days=5)
+            expected_return_date=date.today() + timedelta(days=5),
         )
 
     def test_create_payment_default_status_and_type(self):
@@ -58,4 +77,3 @@ class PaymentModelTests(TestCase):
         )
         self.assertEqual(payment.payment_status, Payment.PaymentStatus.PAID)
         self.assertEqual(payment.payment_type, Payment.PaymentType.FINE)
-
