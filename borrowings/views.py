@@ -4,10 +4,7 @@ from .models import Borrowing, Payment
 from .serializers import BorrowingSerializer, PaymentSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.utils.timezone import now
 from notifications.telegram import send_telegram_notification
-from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 import stripe
@@ -35,7 +32,6 @@ def _create_stripe_session(request, borrowing, amount, payment_type):
     """
     Helper function to create a Stripe checkout session and a Payment object.
     """
-    # Перевірка на вже існуючий платіж у стані PENDING
     if Payment.objects.filter(
         borrowing=borrowing, payment_status=Payment.PaymentStatus.PENDING
     ).exists():
@@ -46,11 +42,9 @@ def _create_stripe_session(request, borrowing, amount, payment_type):
 
     domain = request.build_absolute_uri("/")[:-1]
     success_url = (
-        domain
-        + reverse("borrowing:payment-success")
-        + "?session_id={CHECKOUT_SESSION_ID}"
+            domain + "/api/borrowings/payments/success/?session_id={CHECKOUT_SESSION_ID}"
     )
-    cancel_url = domain + reverse("borrowing:payment-cancel")
+    cancel_url = domain + "/api/borrowings/payments/cancel/"
 
     try:
         session = stripe.checkout.Session.create(
@@ -133,6 +127,16 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             )
             if error_response:
                 return error_response
+
+            message = (
+                f"⚠️ Book returned with delay!\n\n"
+                f"User: {borrowing.user.email}\n"
+                f"Book: {borrowing.book.title}\n"
+                f"Overdue days: {overdue_days}\n"
+                f"Fine: {fine_amount} USD\n"
+                f"Pay here: {payment.session_url}"
+            )
+            send_telegram_notification(message)
 
             return Response(
                 {
