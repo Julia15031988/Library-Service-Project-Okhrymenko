@@ -11,6 +11,8 @@ from django.urls import reverse
 from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 import stripe
+from datetime import date
+
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -102,7 +104,7 @@ class BorrowingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        borrowing.actual_return_date = now()
+        borrowing.actual_return_date = date.today()
         borrowing.save()
 
         borrowing.book.inventory += 1
@@ -143,10 +145,10 @@ class BorrowingViewSet(viewsets.ModelViewSet):
         )
         send_telegram_notification(message)
         # Створення Stripe сесії одразу після створення позики.
-        days = (borrowing.expected_return_date - borrowing.borrow_date).days
+        days = (borrowing.expected_return_date - borrowing.borrow_date.date()).days
         amount = float(days * borrowing.book.daily_fee)
         _create_stripe_session(
-            self.request, borrowing, amount, Payment.PaymentType.PAYMENT
+            self.request, borrowing, amount, Payment.PaymentType.BORROWING
         )
 
 
