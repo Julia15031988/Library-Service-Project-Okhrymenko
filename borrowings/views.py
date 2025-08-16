@@ -42,7 +42,7 @@ def _create_stripe_session(request, borrowing, amount, payment_type):
 
     domain = request.build_absolute_uri("/")[:-1]
     success_url = (
-            domain + "/api/borrowings/payments/success/?session_id={CHECKOUT_SESSION_ID}"
+        domain + "/api/borrowings/payments/success/?session_id={CHECKOUT_SESSION_ID}"
     )
     cancel_url = domain + "/api/borrowings/payments/cancel/"
 
@@ -160,7 +160,6 @@ class BorrowingViewSet(viewsets.ModelViewSet):
             f"Expected return: {borrowing.expected_return_date}"
         )
         send_telegram_notification(message)
-        # Створення Stripe сесії одразу після створення позики.
         days = (borrowing.expected_return_date - borrowing.borrow_date.date()).days
         amount = float(days * borrowing.book.daily_fee)
         _create_stripe_session(
@@ -173,7 +172,6 @@ class IsAdminOrOwner(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
-        # Виправлено: тепер перевіряємо через об'єкт borrowing
         return request.user.is_staff or obj.borrowing.user == request.user
 
 

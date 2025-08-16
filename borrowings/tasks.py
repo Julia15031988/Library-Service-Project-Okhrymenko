@@ -40,3 +40,4 @@ def check_overdue_borrowings():
         )
         send_telegram_message.delay(token, chat_id, text)
     return "Overdue notifications sent"
+

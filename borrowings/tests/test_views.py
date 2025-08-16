@@ -1,6 +1,5 @@
 from rest_framework.test import APITestCase, APIClient
 from django.urls import reverse
-from django.utils import timezone
 from datetime import timedelta, date
 from django.contrib.auth import get_user_model
 from library.models import Book
@@ -26,7 +25,6 @@ class BorrowingViewSetTests(APITestCase):
         self.client = APIClient()
 
     def test_borrowing_list_for_user(self):
-        # Створюємо дві позики: одна юзера, одна іншого
         Borrowing.objects.create(
             user=self.user,
             book=self.book,
@@ -39,12 +37,9 @@ class BorrowingViewSetTests(APITestCase):
         )
 
         self.client.force_authenticate(user=self.user)
-        url = reverse(
-            "borrowing:borrowing-list"
-        )  # якщо у тебе namespace 'borrowing', додай 'borrowing:borrowing-list'
+        url = reverse("borrowing:borrowing-list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        # Має повернутися тільки одна позика — для цього юзера
         self.assertEqual(len(response.data), 1)
 
 
@@ -80,7 +75,6 @@ class PaymentViewSetTests(APITestCase):
         url = reverse("borrowing:payment-list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        # Має повернути тільки платежі для цього користувача
         for payment in response.data:
             self.assertEqual(payment["user"], self.user.id)
 
@@ -89,5 +83,4 @@ class PaymentViewSetTests(APITestCase):
         url = reverse("borrowing:payment-list")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
-        # Повинні бути всі платежі
         self.assertGreaterEqual(len(response.data), 1)

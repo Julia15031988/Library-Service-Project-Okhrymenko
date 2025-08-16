@@ -14,11 +14,9 @@ class BookModelTest(TestCase):
         )
 
     def test_book_str_method(self):
-        """Перевіряє, що __str__ повертає коректний формат."""
         self.assertEqual(str(self.book), "The Great Gatsby by F. Scott Fitzgerald")
 
     def test_book_fields_content(self):
-        """Перевіряє збереження всіх полів."""
         self.assertEqual(self.book.title, "The Great Gatsby")
         self.assertEqual(self.book.author, "F. Scott Fitzgerald")
         self.assertEqual(self.book.cover, Book.CoverChoices.HARD)
