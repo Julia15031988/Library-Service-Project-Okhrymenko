@@ -1,0 +1,49 @@
+from rest_framework import serializers
+from library.models import Book
+from .models import Borrowing, Payment
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "borrowing",
+            "payment_status",
+            "user_amount",
+            "payment_date",
+            "user",
+            "payment_type",
+        )
+        read_only_fields = ["user", "payment_date"]
+
+
+class BorrowingSerializer(serializers.ModelSerializer):
+    payments = PaymentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Borrowing
+        fields = (
+            "id",
+            "borrow_date",
+            "expected_return_date",
+            "actual_return_date",
+            "book",
+            "payments",
+        )
+
+    def validate(self, attrs):
+        book = attrs.get("book")
+        if book.inventory < 1:
+            raise serializers.ValidationError("This book is out of stock.")
+        return attrs
+
+    def create(self, validated_data):
+        book = validated_data["book"]
+        book.inventory -= 1
+        book.save()
+
+        validated_data["user"] = self.context["request"].user
+
+        borrowing = Borrowing.objects.create(**validated_data)
+        return borrowing
